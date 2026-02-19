@@ -1,6 +1,6 @@
 # medmate
 
-A new Flutter project.
+MedMate is a simple medication reminder application
 
 ## Getting Started
 
