@@ -14,26 +14,26 @@ class _RemindersScreenState extends State<RemindersScreen> {
   DateTime selectedDate = DateTime(2026, 2, 19);
   int currentTabIndex = 0;
 
-  // แปลงปีค.ศ. เป็น พ.ศ. (บวก 543)
+  // Get current Gregorian calendar year
   String _getThaiYear(DateTime date) {
-    return (date.year + 543).toString();
+    return date.year.toString();
   }
 
-  // ชื่อเดือนไทย
+  // Month names in English
   String _getThaiMonthName(int month) {
     const thaiMonths = [
-      'มกราคม',
-      'กุมภาพันธ์',
-      'มีนาคม',
-      'เมษายน',
-      'พฤษภาคม',
-      'มิถุนายน',
-      'กรกฎาคม',
-      'สิงหาคม',
-      'กันยายน',
-      'ตุลาคม',
-      'พฤศจิกายน',
-      'ธันวาคม',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return thaiMonths[month - 1];
   }
