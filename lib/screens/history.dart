@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'reminders.dart';
-import 'profile.dart';
+import 'addmedication.dart';
+import '../services/language_manager.dart';
+import '../services/app_language_state.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -11,6 +13,22 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   DateTime selectedDate = DateTime(2026, 2, 19);
+
+  @override
+  void initState() {
+    super.initState();
+    AppLanguageState.addListener(_onLanguageChange);
+  }
+
+  @override
+  void dispose() {
+    AppLanguageState.removeListener(_onLanguageChange);
+    super.dispose();
+  }
+
+  void _onLanguageChange() {
+    setState(() {});
+  }
 
   final List<Map<String, dynamic>> todayMedications = [
     {
@@ -83,48 +101,85 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-
-              // Medication History List
-              ...todayMedications.map((med) => _buildMedicationHistoryCard(med)).toList(),
+              ...todayMedications
+                  .map((med) => _buildMedicationHistoryCard(med))
+                  .toList(),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
-        onTap: (index) {
-          if (index == 0) {
-            // Navigate to Reminders
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const RemindersScreen(),
+      bottomNavigationBar: Container(
+        height: 70,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            // Reminders (ซ้าย)
+            GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RemindersScreen(),
+                  ),
+                );
+              },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.notifications, color: Colors.grey),
+                  Text(
+                    LanguageManager.getString(
+                        'reminders', AppLanguageState.currentLanguage),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
               ),
-            );
-          } else if (index == 2) {
-            // Navigate to Profile
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ProfileScreen(),
+            ),
+            // ปุ่ม + กลม (กลาง) -> ไปหน้า AddMedication
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddMedicationScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF4A90E2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 28),
               ),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Reminders',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+            ),
+            // History (ขวา) - active
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.history, color: Color(0xFF4A90E2)),
+                Text(
+                  LanguageManager.getString(
+                      'history', AppLanguageState.currentLanguage),
+                  style: const TextStyle(
+                      fontSize: 11, color: Color(0xFF4A90E2)),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -271,7 +326,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: Center(
                   child: Icon(
                     isCompleted ? Icons.check : Icons.close,
-                    color: isCompleted ? const Color(0xFF4A90E2) : Colors.grey[600],
+                    color: isCompleted
+                        ? const Color(0xFF4A90E2)
+                        : Colors.grey[600],
                     size: 20,
                   ),
                 ),
@@ -333,18 +390,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   String _getMonthName(int month) {
     const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December'
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return months[month - 1];
   }

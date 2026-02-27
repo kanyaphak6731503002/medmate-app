@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'addmedication.dart';
 import 'history.dart';
-import 'profile.dart';
+import '../services/language_manager.dart';
+import '../services/app_language_state.dart';
 
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({Key? key}) : super(key: key);
@@ -11,55 +12,41 @@ class RemindersScreen extends StatefulWidget {
 }
 
 class _RemindersScreenState extends State<RemindersScreen> {
-  DateTime selectedDate = DateTime(2026, 2, 19);
+  late DateTime selectedDate;
+  late DateTime today;
   int currentTabIndex = 0;
 
-  // Get current Gregorian calendar year
-  String _getThaiYear(DateTime date) {
-    return date.year.toString();
+  @override
+  void initState() {
+    super.initState();
+    today = DateTime.now();
+    selectedDate = DateTime.now();
+    AppLanguageState.addListener(_onLanguageChange);
   }
 
-  // Month names in English
-  String _getThaiMonthName(int month) {
-    const thaiMonths = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
+  @override
+  void dispose() {
+    AppLanguageState.removeListener(_onLanguageChange);
+    super.dispose();
+  }
+
+  void _onLanguageChange() {
+    setState(() {});
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
     ];
-    return thaiMonths[month - 1];
+    return months[month - 1];
   }
 
-  // รูปแบบวันเดือนปีไทย
-  String _getThaiDateFormat(DateTime date) {
-    return '${_getThaiMonthName(date.month)} ${_getThaiYear(date)}';
+  String _getDateFormat(DateTime date) {
+    return '${_getMonthName(date.month)} ${date.year}';
   }
 
-  final List<Map<String, dynamic>> reminders = [
-    {
-      'time': '08:00',
-      'name': 'Paracetamol',
-      'days': [true, true, true, true, true, true, true],
-    },
-    {
-      'time': '13:00',
-      'name': 'Vitamin D',
-      'days': [true, true, true, true, true, true, true],
-    },
-    {
-      'time': '19:00',
-      'name': 'Blood Pressure Med',
-      'days': [true, true, true, true, true, true, true],
-    },
-  ];
+  final List<Map<String, dynamic>> reminders = [];
 
   void _previousMonth() {
     setState(() {
@@ -71,6 +58,50 @@ class _RemindersScreenState extends State<RemindersScreen> {
     setState(() {
       selectedDate = DateTime(selectedDate.year, selectedDate.month + 1);
     });
+  }
+
+  Future<void> _goToAddMedication() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddMedicationScreen(),
+      ),
+    );
+
+    if (result != null && result is Map<String, dynamic>) {
+      setState(() {
+        result['confirmed'] = false;
+        reminders.add(result);
+      });
+    }
+  }
+
+  void _deleteReminder(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Reminder'),
+        content: Text('Delete "${reminders[index]['name']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                reminders.removeAt(index);
+              });
+              Navigator.pop(context);
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -88,75 +119,134 @@ class _RemindersScreenState extends State<RemindersScreen> {
             const SizedBox(height: 30),
             // Reminders List
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: reminders.length,
-                itemBuilder: (context, index) {
-                  return _buildReminderCard(reminders[index]);
-                },
+              child: reminders.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.notifications_none,
+                              size: 64, color: Colors.grey[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No reminders yet',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Tap + to add a medication',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: reminders.length,
+                      itemBuilder: (context, index) {
+                        return _buildReminderCard(reminders[index], index);
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        height: 70,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            GestureDetector(
+              onTap: () => setState(() => currentTabIndex = 0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.notifications,
+                    color: currentTabIndex == 0
+                        ? const Color(0xFF4A90E2)
+                        : Colors.grey,
+                  ),
+                  Text(
+                    LanguageManager.getString(
+                        'reminders', AppLanguageState.currentLanguage),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: currentTabIndex == 0
+                          ? const Color(0xFF4A90E2)
+                          : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: _goToAddMedication,
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF4A90E2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 28),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HistoryScreen(),
+                  ),
+                );
+              },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.history,
+                    color: currentTabIndex == 1
+                        ? const Color(0xFF4A90E2)
+                        : Colors.grey,
+                  ),
+                  Text(
+                    LanguageManager.getString(
+                        'history', AppLanguageState.currentLanguage),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: currentTabIndex == 1
+                          ? const Color(0xFF4A90E2)
+                          : Colors.grey,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF4A90E2),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddMedicationScreen(),
-            ),
-          );
-        },
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentTabIndex,
-        onTap: (index) {
-          if (index == 0) {
-            // Stay on Reminders
-            setState(() {
-              currentTabIndex = index;
-            });
-          } else if (index == 1) {
-            // Navigate to History
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const HistoryScreen(),
-              ),
-            );
-          } else if (index == 2) {
-            // Navigate to Profile
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ProfileScreen(),
-              ),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Reminders',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildCalendarHeader() {
-    final monthYear = _getThaiDateFormat(selectedDate);
+    final monthYear = _getDateFormat(selectedDate);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -168,10 +258,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
           ),
           Text(
             monthYear,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
@@ -183,10 +270,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   Widget _buildCalendar() {
-    final now = DateTime(selectedDate.year, selectedDate.month, 1);
-    final daysInMonth = DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
-    // Convert Dart weekday (1=Monday, 7=Sunday) to position (0=Sunday, 6=Saturday)
-    final firstWeekday = now.weekday == 7 ? 0 : now.weekday;
+    final firstOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
+    final daysInMonth =
+        DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
+    final firstWeekday =
+        firstOfMonth.weekday == 7 ? 0 : firstOfMonth.weekday;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -221,30 +309,26 @@ class _RemindersScreenState extends State<RemindersScreen> {
             ),
             itemCount: firstWeekday + daysInMonth,
             itemBuilder: (context, index) {
-              if (index < firstWeekday) {
-                return const SizedBox();
-              }
+              if (index < firstWeekday) return const SizedBox();
               final day = index - firstWeekday + 1;
-              final isSelected = day == selectedDate.day;
 
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedDate = DateTime(selectedDate.year, selectedDate.month, day);
-                  });
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFF4A90E2) : Colors.transparent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$day',
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.w500,
-                      ),
+              final isToday = day == today.day &&
+                  selectedDate.month == today.month &&
+                  selectedDate.year == today.year;
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: isToday
+                      ? const Color(0xFF4A90E2)
+                      : Colors.transparent,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '$day',
+                    style: TextStyle(
+                      color: isToday ? Colors.white : Colors.black,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -256,95 +340,160 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
-  Widget _buildReminderCard(Map<String, dynamic> reminder) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Time
-            Text(
-              reminder['time'],
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
+  Widget _buildReminderCard(Map<String, dynamic> reminder, int index) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 20),
+    decoration: BoxDecoration(
+      border: Border.all(color: Colors.grey[300]!),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // เวลา + ปุ่มลบ
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                reminder['time'],
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            // Medication Name
-            Text(
-              reminder['name'],
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+              GestureDetector(
+                onTap: () => _deleteReminder(index),
+                child: const Icon(Icons.delete_outline,
+                    color: Colors.red, size: 20),
               ),
-            ),
-            const SizedBox(height: 12),
-            // Day buttons
-            Row(
-              children: List.generate(7, (index) {
-                final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                final isActive = reminder['days'][index];
-                return Container(
-                  margin: const EdgeInsets.only(right: 8),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // ชื่อยา + meal timing
+          Row(
+            children: [
+              Text(
+                reminder['name'],
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (reminder['mealTiming'] != null &&
+                  reminder['mealTiming'].toString().isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: isActive ? const Color(0xFF4A90E2) : Colors.grey[200],
-                    shape: BoxShape.circle,
+                    color: const Color(0xFFE8F1FD),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: Center(
-                      child: Text(
-                        days[index],
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isActive ? Colors.white : Colors.black54,
-                        ),
+                  child: Text(
+                    reminder['mealTiming'],
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF4A90E2),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // วันในสัปดาห์
+          Row(
+            children: List.generate(7, (i) {
+              final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+              final isActive = reminder['days'][i];
+
+              return Container(
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? const Color(0xFF4A90E2)
+                      : Colors.grey[200],
+                  shape: BoxShape.circle,
+                ),
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Center(
+                    child: Text(
+                      days[i],
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isActive ? Colors.white : Colors.black54,
                       ),
                     ),
                   ),
-                );
-              }),
-            ),
-            const SizedBox(height: 12),
-            // Confirm Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${reminder['name']} confirmed!')),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A90E2),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                ),
+              );
+            }),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ✅ Confirm / Taken
+          reminder['confirmed'] == true
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.check,
+                        color: Color(0xFF4A90E2), size: 18),
+                    SizedBox(width: 6),
+                    Text(
+                      'Taken',
+                      style: TextStyle(
+                        color: Color(0xFF4A90E2),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                )
+              : SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        // ⭐ เปลี่ยนสถานะ
+                        reminder['confirmed'] = true;
+
+                        // ⭐ บังคับ Flutter rebuild card
+                        reminders[index] =
+                            Map<String, dynamic>.from(reminder);
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4A90E2),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Confirm',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                 ),
-                child: const Text(
-                  'Confirm',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
-    );
+    ),
+  );
   }
 }

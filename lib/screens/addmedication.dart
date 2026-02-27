@@ -9,13 +9,83 @@ class AddMedicationScreen extends StatefulWidget {
 
 class _AddMedicationScreenState extends State<AddMedicationScreen> {
   final TextEditingController medicationNameController = TextEditingController();
-  final TextEditingController startDateController = TextEditingController();
-  final TextEditingController endDateController = TextEditingController();
 
-  String selectedFrequency = 'Days of the week';
-  String selectedMealTiming = 'Anytime';
-  List<String> reminderTimes = ['08:00'];
-  List<bool> selectedDays = [true, true, true, true, true, true, true]; // M T W T F S S
+  String selectedMealTiming = '';
+  List<String> reminderTimes = [];
+  List<bool> selectedDays = [false, false, false, false, false, false, false];
+
+  bool _validate() {
+    if (medicationNameController.text.trim().isEmpty) {
+      _showError('Please enter medication name');
+      return false;
+    }
+    if (reminderTimes.isEmpty) {
+      _showError('Please add at least one reminder time');
+      return false;
+    }
+    if (!selectedDays.contains(true)) {
+      _showError('Please select at least one day');
+      return false;
+    }
+    if (selectedMealTiming.isEmpty) {
+      _showError('Please select meal timing');
+      return false;
+    }
+    return true;
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _pickTimeAndAdd() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      final formatted =
+          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      setState(() {
+        reminderTimes.add(formatted);
+      });
+    }
+  }
+
+  Widget _buildMealTimingButton(String label) {
+    final isSelected = selectedMealTiming == label;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            selectedMealTiming = label;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF4A90E2) : Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black54,
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,10 +109,23 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
             // Medication Name
-            const Text(
-              'Medication Name',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            RichText(
+              text: const TextSpan(
+                text: 'Medication Name ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+                children: [
+                  TextSpan(
+                    text: '*',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -60,95 +143,92 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Reminder Time (only show if not "As needed")
-            if (selectedFrequency != 'As needed') ...[
-              const Text(
-                'Reminder Time',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              Column(
+            // Reminder Time
+            RichText(
+              text: const TextSpan(
+                text: 'Reminder Time ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
                 children: [
-                  ...reminderTimes.asMap().entries.map((entry) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(entry.value),
-                      ),
-                    );
-                  }).toList(),
+                  TextSpan(
+                    text: '*',
+                    style: TextStyle(color: Colors.red),
+                  ),
                 ],
               ),
-              Container(
+            ),
+            const SizedBox(height: 12),
+
+            // chips เวลาที่เพิ่มแล้ว
+            if (reminderTimes.isNotEmpty) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: reminderTimes.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final time = entry.value;
+                  return InputChip(
+                    label: Text(time),
+                    onPressed: () {},
+                    onDeleted: () {
+                      setState(() {
+                        reminderTimes.removeAt(idx);
+                      });
+                    },
+                    deleteIcon: const Icon(Icons.close, size: 18),
+                    backgroundColor: Colors.grey[100],
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // ปุ่ม + Add time
+            GestureDetector(
+              onTap: _pickTimeAndAdd,
+              child: Container(
                 width: double.infinity,
-                margin: const EdgeInsets.only(top: 12),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(color: const Color(0xFF4A90E2)),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Center(
+                child: const Center(
                   child: Text(
-                    '+ Add another time',
-                    style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500),
+                    '+ Add time',
+                    style: TextStyle(
+                      color: Color(0xFF4A90E2),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-            ],
-
-            // Frequency
-            const Text(
-              'Frequency',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
+            const SizedBox(height: 24),
+
+            // Days of the week
+            RichText(
+              text: const TextSpan(
+                text: 'Days of the week ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
                 children: [
-                  _buildFrequencyButton('Days of the week'),
-                  const SizedBox(width: 8),
-                  _buildFrequencyButton('Time range'),
-                  const SizedBox(width: 8),
-                  _buildFrequencyButton('Cycle'),
-                  const SizedBox(width: 8),
+                  TextSpan(
+                    text: '*',
+                    style: TextStyle(color: Colors.red),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Meal Timing
-            const Text(
-              'Meal Timing',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
             const SizedBox(height: 12),
             Row(
-              children: [
-                _buildMealTimingButton('Before'),
-                const SizedBox(width: 8),
-                _buildMealTimingButton('After'),
-                const SizedBox(width: 8),
-                _buildMealTimingButton('Anytime'),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Days of the week (only show if not "As needed")
-            if (selectedFrequency != 'As needed') ...[
-              const Text(
-                'Days of the week',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(7, (index) {
                 final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
                 return GestureDetector(
@@ -161,7 +241,9 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: selectedDays[index] ? const Color(0xFF4A90E2) : Colors.grey[200],
+                      color: selectedDays[index]
+                          ? const Color(0xFF4A90E2)
+                          : Colors.grey[200],
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -169,7 +251,9 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                         days[index],
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: selectedDays[index] ? Colors.white : Colors.black54,
+                          color: selectedDays[index]
+                              ? Colors.white
+                              : Colors.black54,
                         ),
                       ),
                     ),
@@ -177,59 +261,33 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                 );
               }),
             ),
-            ],
             const SizedBox(height: 24),
 
-            // Start and End Date
+            // Meal Timing
+            RichText(
+              text: const TextSpan(
+                text: 'Meal Timing ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+                children: [
+                  TextSpan(
+                    text: '*',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Start date',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: startDateController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'End date (optional)',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: endDateController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildMealTimingButton('Before'),
+                const SizedBox(width: 8),
+                _buildMealTimingButton('After'),
+                const SizedBox(width: 8),
+                _buildMealTimingButton('Anytime'),
               ],
             ),
             const SizedBox(height: 32),
@@ -239,10 +297,16 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Medication added!')),
-                  );
-                  Navigator.pop(context);
+                  if (!_validate()) return;
+
+                  final newMedication = {
+                    'name': medicationNameController.text.trim(),
+                    'time': reminderTimes[0],
+                    'days': List<bool>.from(selectedDays),
+                    'mealTiming': selectedMealTiming,
+                  };
+
+                  Navigator.pop(context, newMedication);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4A90E2),
@@ -266,69 +330,5 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildFrequencyButton(String label) {
-    final isSelected = selectedFrequency == label;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedFrequency = label;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4A90E2) : Colors.grey[200],
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black54,
-            fontWeight: FontWeight.w500,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMealTimingButton(String label) {
-    final isSelected = selectedMealTiming == label;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            selectedMealTiming = label;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF4A90E2) : Colors.grey[100],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black54,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    medicationNameController.dispose();
-    startDateController.dispose();
-    endDateController.dispose();
-    super.dispose();
   }
 }
