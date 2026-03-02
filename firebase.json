@@ -1,0 +1,39 @@
+﻿{
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "medmate-588bb",
+          "appId": "1:175498097401:android:f704580d31ea0e1b2be828",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "medmate-588bb",
+          "configurations": {
+            "android": "1:175498097401:android:f704580d31ea0e1b2be828",
+            "ios": "1:175498097401:ios:b5c3bf713bbd4ace2be828",
+            "macos": "1:175498097401:ios:b5c3bf713bbd4ace2be828",
+            "web": "1:175498097401:web:cdc5477d39f2b6ea2be828",
+            "windows": "1:175498097401:web:d9c21b005a6132022be828"
+          }
+        }
+      }
+    }
+  }
+}

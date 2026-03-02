@@ -12,6 +12,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
   String selectedMealTiming = '';
   List<String> reminderTimes = [];
+  int selectedTimeIndex = 0;
   List<bool> selectedDays = [false, false, false, false, false, false, false];
 
   bool _validate() {
@@ -53,6 +54,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
       setState(() {
         reminderTimes.add(formatted);
+        selectedTimeIndex = reminderTimes.length - 1; // auto-select new time
       });
     }
   }
@@ -162,7 +164,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
             ),
             const SizedBox(height: 12),
 
-            // chips เวลาที่เพิ่มแล้ว
+            // chips เวลาที่เพิ่มแล้ว (เลือกได้แค่ 1)
             if (reminderTimes.isNotEmpty) ...[
               Wrap(
                 spacing: 8,
@@ -170,16 +172,66 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                 children: reminderTimes.asMap().entries.map((entry) {
                   final idx = entry.key;
                   final time = entry.value;
-                  return InputChip(
-                    label: Text(time),
-                    onPressed: () {},
-                    onDeleted: () {
-                      setState(() {
-                        reminderTimes.removeAt(idx);
-                      });
-                    },
-                    deleteIcon: const Icon(Icons.close, size: 18),
-                    backgroundColor: Colors.grey[100],
+                  final isSelected = idx == selectedTimeIndex;
+                  return GestureDetector(
+                    onTap: () => setState(() => selectedTimeIndex = idx),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF4A90E2)
+                            : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF4A90E2)
+                              : Colors.grey[300]!,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isSelected
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            size: 16,
+                            color: isSelected ? Colors.white : Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            time,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                reminderTimes.removeAt(idx);
+                                if (reminderTimes.isNotEmpty) {
+                                  selectedTimeIndex =
+                                      (selectedTimeIndex >= reminderTimes.length)
+                                          ? reminderTimes.length - 1
+                                          : selectedTimeIndex;
+                                } else {
+                                  selectedTimeIndex = 0;
+                                }
+                              });
+                            },
+                            child: Icon(
+                              Icons.close,
+                              size: 16,
+                              color: isSelected ? Colors.white70 : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 }).toList(),
               ),
@@ -301,7 +353,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
                   final newMedication = {
                     'name': medicationNameController.text.trim(),
-                    'time': reminderTimes[0],
+                    'time': reminderTimes[selectedTimeIndex],
                     'days': List<bool>.from(selectedDays),
                     'mealTiming': selectedMealTiming,
                   };
