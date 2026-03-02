@@ -32,6 +32,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _onLanguageChange() => setState(() {});
 
+  String get _lang => AppLanguageState.currentLanguage;
+  String _t(String key) => LanguageManager.getString(key, _lang);
+
  List<Map<String, dynamic>> get todayMedications {
     return widget.reminders
         .where((reminder) => reminder['confirmed'] == true)
@@ -64,25 +67,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('History',
-                  style: TextStyle(
-                      fontSize: 28, fontWeight: FontWeight.bold)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    LanguageManager.getString('history', AppLanguageState.currentLanguage),
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                  _buildLanguageToggle(),
+                ],
+              ),
               const SizedBox(height: 24),
               _buildAdherenceCard(),
               const SizedBox(height: 24),
               _buildMonthNavigation(),
               const SizedBox(height: 24),
-              const Text('Today',
-                  style: TextStyle(
+              Text(
+                    _t('today'),
+                  style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey)),
               const SizedBox(height: 12),
               if (todayMedications.isEmpty)
-                const Center(
+                Center(
                     child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text('No history yet')))
+                        padding: const EdgeInsets.all(20),
+                        child: Text(_t('no_history'))))
               else
                 ...todayMedications
                     .map((med) => _buildMedicationHistoryCard(med))
@@ -158,6 +170,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Widget _buildLanguageToggle() {
+    final isThai = AppLanguageState.currentLanguage == LanguageManager.THAI;
+    return GestureDetector(
+      onTap: () {
+        AppLanguageState.changeLanguage(
+            isThai ? LanguageManager.ENGLISH : LanguageManager.THAI);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4A90E2),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          isThai ? 'EN' : 'TH',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildAdherenceCard() {
     final total = todayMedications.length;
     final taken =
@@ -177,8 +214,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Adherence Rate',
-              style: TextStyle(color: Colors.white70)),
+          Text(_t('adherence_rate'),
+              style: const TextStyle(color: Colors.white70)),
           const SizedBox(height: 8),
           Text('$percent%',
               style: const TextStyle(
@@ -186,25 +223,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   fontSize: 36,
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          Text('$taken taken • $missed missed • $total total',
-              style: const TextStyle(color: Colors.white)),
+          Text(
+            _lang == LanguageManager.THAI
+                ? 'ทาน $taken ครั้ง • พลาด $missed ครั้ง • รวม $total ครั้ง'
+                : '$taken taken • $missed missed • $total total',
+            style: const TextStyle(color: Colors.white),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildMonthNavigation() {
-    const months = [
-      'January','February','March','April','May','June',
-      'July','August','September','October','November','December'
-    ];
+    final monthName = LanguageManager.getMonthName(selectedDate.month, _lang);
+    final year = _lang == LanguageManager.THAI
+        ? selectedDate.year + 543
+        : selectedDate.year;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: _previousMonth),
-        Text('${months[selectedDate.month - 1]} ${selectedDate.year}',
+        Text('$monthName $year',
             style: const TextStyle(
                 fontSize: 16, fontWeight: FontWeight.w600)),
         IconButton(
@@ -236,13 +277,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
               children: [
                 Text(med['name'],
                     style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('Scheduled: ${med['scheduledTime']}',
+                Text('${_t('scheduled')} ${med['scheduledTime']}',
                     style: TextStyle(
                         fontSize: 12, color: Colors.grey[600])),
               ],
             ),
           ),
-          Text(taken ? 'Taken' : 'Missed',
+          Text(taken ? _t('taken') : _t('missed'),
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,

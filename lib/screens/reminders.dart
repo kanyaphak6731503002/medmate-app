@@ -34,16 +34,19 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
   void _onLanguageChange() => setState(() {});
 
+  String get _lang => AppLanguageState.currentLanguage;
+  String _t(String key) => LanguageManager.getString(key, _lang);
+
   String _getMonthName(int month) {
-    const months = [
-      'January','February','March','April','May','June',
-      'July','August','September','October','November','December',
-    ];
-    return months[month - 1];
+    return LanguageManager.getMonthName(month, _lang);
   }
 
-  String _getDateFormat(DateTime date) =>
-      '${_getMonthName(date.month)} ${date.year}';
+  String _getDateFormat(DateTime date) {
+    final month = _getMonthName(date.month);
+    return _lang == LanguageManager.THAI
+        ? '$month ${date.year + 543}'
+        : '$month ${date.year}';
+  }
 
   void _previousMonth() => setState(() {
         selectedDate = DateTime(selectedDate.year, selectedDate.month - 1);
@@ -79,12 +82,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Reminder'),
-        content: Text('Delete "${reminders[index]['name']}"?'),
+        title: Text(_t('delete_reminder_title')),
+        content: Text('${_t('delete')} "${reminders[index]['name']}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(_t('cancel')),
           ),
           TextButton(
             onPressed: () async {
@@ -93,7 +96,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
               setState(() => reminders.removeAt(index));
               Navigator.pop(context);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(_t('delete'), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -107,6 +110,20 @@ class _RemindersScreenState extends State<RemindersScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    LanguageManager.getString('reminders', AppLanguageState.currentLanguage),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  _buildLanguageToggle(),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
             _buildCalendarHeader(),
             const SizedBox(height: 20),
             _buildCalendar(),
@@ -120,11 +137,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           Icon(Icons.notifications_none,
                               size: 64, color: Colors.grey[300]),
                           const SizedBox(height: 16),
-                          Text('No reminders yet',
+                          Text(_t('no_reminders_yet'),
                               style: TextStyle(
                                   fontSize: 16, color: Colors.grey[400])),
                           const SizedBox(height: 8),
-                          Text('Tap + to add a medication',
+                          Text(_t('tap_to_add'),
                               style: TextStyle(
                                   fontSize: 13, color: Colors.grey[400])),
                         ],
@@ -234,6 +251,31 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
+  Widget _buildLanguageToggle() {
+    final isThai = AppLanguageState.currentLanguage == LanguageManager.THAI;
+    return GestureDetector(
+      onTap: () {
+        AppLanguageState.changeLanguage(
+            isThai ? LanguageManager.ENGLISH : LanguageManager.THAI);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4A90E2),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          isThai ? 'EN' : 'TH',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildCalendarHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -267,7 +309,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+            children: LanguageManager.getCalendarHeaders(_lang)
                 .map((d) => SizedBox(
                     width: 40,
                     child: Center(
@@ -355,7 +397,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       color: const Color(0xFFE8F1FD),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(reminder['mealTiming'],
+                    child: Text(_t(reminder['mealTiming']),
                         style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xFF4A90E2),
@@ -367,7 +409,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
             const SizedBox(height: 12),
             Row(
               children: List.generate(7, (i) {
-                final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                final days = LanguageManager.getDayAbbreviations(_lang);
                 final isActive = reminder['days'][i];
                 return Container(
                   margin: const EdgeInsets.only(right: 8),
@@ -397,12 +439,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
             reminder['confirmed'] == true
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.check,
+                    children: [
+                      const Icon(Icons.check,
                           color: Color(0xFF4A90E2), size: 18),
-                      SizedBox(width: 6),
-                      Text('Taken',
-                          style: TextStyle(
+                      const SizedBox(width: 6),
+                      Text(_t('taken'),
+                          style: const TextStyle(
                               color: Color(0xFF4A90E2),
                               fontWeight: FontWeight.w600,
                               fontSize: 14)),
@@ -427,8 +469,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: const Text('Confirm',
-                          style: TextStyle(
+                      child: Text(_t('confirm'),
+                          style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                               fontSize: 14)),

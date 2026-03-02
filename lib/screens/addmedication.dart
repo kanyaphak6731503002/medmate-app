@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/language_manager.dart';
+import '../services/app_language_state.dart';
 
 class AddMedicationScreen extends StatefulWidget {
   const AddMedicationScreen({Key? key}) : super(key: key);
@@ -15,21 +17,39 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   int selectedTimeIndex = 0;
   List<bool> selectedDays = [false, false, false, false, false, false, false];
 
+  String get _lang => AppLanguageState.currentLanguage;
+  String _t(String key) => LanguageManager.getString(key, _lang);
+
+  @override
+  void initState() {
+    super.initState();
+    AppLanguageState.addListener(_onLanguageChange);
+  }
+
+  @override
+  void dispose() {
+    AppLanguageState.removeListener(_onLanguageChange);
+    medicationNameController.dispose();
+    super.dispose();
+  }
+
+  void _onLanguageChange() => setState(() {});
+
   bool _validate() {
     if (medicationNameController.text.trim().isEmpty) {
-      _showError('Please enter medication name');
+      _showError(_t('error_enter_name'));
       return false;
     }
     if (reminderTimes.isEmpty) {
-      _showError('Please add at least one reminder time');
+      _showError(_t('error_add_time'));
       return false;
     }
     if (!selectedDays.contains(true)) {
-      _showError('Please select at least one day');
+      _showError(_t('error_select_day'));
       return false;
     }
     if (selectedMealTiming.isEmpty) {
-      _showError('Please select meal timing');
+      _showError(_t('error_select_meal'));
       return false;
     }
     return true;
@@ -59,13 +79,14 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     }
   }
 
-  Widget _buildMealTimingButton(String label) {
-    final isSelected = selectedMealTiming == label;
+  // key = 'before' | 'after' | 'anytime'
+  Widget _buildMealTimingButton(String key) {
+    final isSelected = selectedMealTiming == key;
     return Expanded(
       child: GestureDetector(
         onTap: () {
           setState(() {
-            selectedMealTiming = label;
+            selectedMealTiming = key;
           });
         },
         child: Container(
@@ -76,7 +97,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           ),
           child: Center(
             child: Text(
-              label,
+              _t(key),
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.black54,
                 fontWeight: FontWeight.w500,
@@ -100,11 +121,40 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           icon: const Icon(Icons.chevron_left, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Add Medication',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          _t('add_medication'),
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: false,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () {
+                AppLanguageState.changeLanguage(
+                  AppLanguageState.currentLanguage == LanguageManager.THAI
+                      ? LanguageManager.ENGLISH
+                      : LanguageManager.THAI,
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4A90E2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  AppLanguageState.currentLanguage == LanguageManager.THAI ? 'EN' : 'TH',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -114,14 +164,14 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
             // Medication Name
             RichText(
-              text: const TextSpan(
-                text: 'Medication Name ',
-                style: TextStyle(
+              text: TextSpan(
+                text: '${_t('medication_name')} ',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.black,
                 ),
-                children: [
+                children: const [
                   TextSpan(
                     text: '*',
                     style: TextStyle(color: Colors.red),
@@ -133,7 +183,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
             TextField(
               controller: medicationNameController,
               decoration: InputDecoration(
-                hintText: 'Enter medication name',
+                hintText: _t('enter_medication_name'),
                 hintStyle: TextStyle(color: Colors.grey[400]),
                 filled: true,
                 fillColor: Colors.grey[100],
@@ -147,14 +197,14 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
             // Reminder Time
             RichText(
-              text: const TextSpan(
-                text: 'Reminder Time ',
-                style: TextStyle(
+              text: TextSpan(
+                text: '${_t('reminder_time')} ',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.black,
                 ),
-                children: [
+                children: const [
                   TextSpan(
                     text: '*',
                     style: TextStyle(color: Colors.red),
@@ -248,10 +298,10 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                   border: Border.all(color: const Color(0xFF4A90E2)),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
-                    '+ Add time',
-                    style: TextStyle(
+                    _t('add_time'),
+                    style: const TextStyle(
                       color: Color(0xFF4A90E2),
                       fontWeight: FontWeight.w500,
                     ),
@@ -263,14 +313,14 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
             // Days of the week
             RichText(
-              text: const TextSpan(
-                text: 'Days of the week ',
-                style: TextStyle(
+              text: TextSpan(
+                text: '${_t('days_of_week')} ',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.black,
                 ),
-                children: [
+                children: const [
                   TextSpan(
                     text: '*',
                     style: TextStyle(color: Colors.red),
@@ -282,7 +332,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(7, (index) {
-                final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                final days = LanguageManager.getDayAbbreviations(_lang);
                 return GestureDetector(
                   onTap: () {
                     setState(() {
@@ -317,14 +367,14 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
             // Meal Timing
             RichText(
-              text: const TextSpan(
-                text: 'Meal Timing ',
-                style: TextStyle(
+              text: TextSpan(
+                text: '${_t('meal_timing')} ',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.black,
                 ),
-                children: [
+                children: const [
                   TextSpan(
                     text: '*',
                     style: TextStyle(color: Colors.red),
@@ -335,11 +385,11 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildMealTimingButton('Before'),
+                _buildMealTimingButton('before'),
                 const SizedBox(width: 8),
-                _buildMealTimingButton('After'),
+                _buildMealTimingButton('after'),
                 const SizedBox(width: 8),
-                _buildMealTimingButton('Anytime'),
+                _buildMealTimingButton('anytime'),
               ],
             ),
             const SizedBox(height: 32),
@@ -367,9 +417,9 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  'Save',
-                  style: TextStyle(
+                child: Text(
+                  _t('save'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 16,

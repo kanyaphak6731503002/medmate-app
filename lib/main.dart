@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'package:medmate/screens/reminders.dart';
+import 'package:medmate/screens/welcome.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -20,7 +20,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       title: 'MedMate',
-      home: RemindersScreen(),
+      debugShowCheckedModeBanner: false,
+      home: Welcome(),
     );
   }
 }
