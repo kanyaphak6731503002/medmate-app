@@ -3,7 +3,7 @@ import 'addmedication.dart';
 import 'history.dart';
 import '../services/language_manager.dart';
 import '../services/app_language_state.dart';
-import '../services/notification_service.dart';
+import '../services/alarm_storage.dart';
 
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({Key? key}) : super(key: key);
@@ -24,28 +24,37 @@ class _RemindersScreenState extends State<RemindersScreen> {
     today = DateTime.now();
     selectedDate = DateTime.now();
     AppLanguageState.addListener(_onLanguageChange);
+    AlarmStorage.addListener(_onAlarmStorageChange);
+    _loadAlarms();
   }
 
   @override
   void dispose() {
     AppLanguageState.removeListener(_onLanguageChange);
+    AlarmStorage.removeListener(_onAlarmStorageChange);
     super.dispose();
   }
 
   void _onLanguageChange() => setState(() {});
 
+  void _onAlarmStorageChange() => _loadAlarms();
+
   String get _lang => AppLanguageState.currentLanguage;
   String _t(String key) => LanguageManager.getString(key, _lang);
 
-  String _getMonthName(int month) {
-    return LanguageManager.getMonthName(month, _lang);
-  }
+  String _getMonthName(int month) =>
+      LanguageManager.getMonthName(month, _lang);
 
   String _getDateFormat(DateTime date) {
     final month = _getMonthName(date.month);
     return _lang == LanguageManager.THAI
         ? '$month ${date.year + 543}'
         : '$month ${date.year}';
+  }
+
+  Future<void> _loadAlarms() async {
+    final loaded = await AlarmStorage.loadAlarms();
+    setState(() => reminders = loaded);
   }
 
   void _previousMonth() => setState(() {
@@ -62,19 +71,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
       MaterialPageRoute(builder: (context) => const AddMedicationScreen()),
     );
     if (result != null && result is Map<String, dynamic>) {
-      final int reminderId =
-          DateTime.now().millisecondsSinceEpoch % 1000000;
-      result['confirmed'] = false;
-      result['id'] = reminderId;
-      setState(() {
-        reminders.add(result);
-      });
-      await NotificationService.scheduleReminder(
-        reminderId: reminderId,
-        name: result['name'],
-        time: result['time'],
-        days: List<bool>.from(result['days']),
-      );
+      await AlarmStorage.addAlarm(reminders, result);
+      setState(() {});
     }
   }
 
@@ -91,12 +89,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
           ),
           TextButton(
             onPressed: () async {
-              final id = reminders[index]['id'] as int?;
-              if (id != null) await NotificationService.cancelReminder(id);
-              setState(() => reminders.removeAt(index));
               Navigator.pop(context);
+              await AlarmStorage.deleteAlarm(reminders, index);
+              setState(() {});
             },
-            child: Text(_t('delete'), style: const TextStyle(color: Colors.red)),
+            child: Text(_t('delete'),
+                style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -116,8 +114,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    LanguageManager.getString('reminders', AppLanguageState.currentLanguage),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    LanguageManager.getString(
+                        'reminders', AppLanguageState.currentLanguage),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   _buildLanguageToggle(),
                 ],
@@ -150,8 +150,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: reminders.length,
-                      itemBuilder: (context, index) => _buildReminderCard(
-                          reminders[index], index),
+                      itemBuilder: (context, index) =>
+                          _buildReminderCard(reminders[index], index),
                     ),
             ),
           ],
@@ -207,23 +207,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => HistoryScreen(
-                            reminders: reminders)),
+                      builder: (context) =>
+                          HistoryScreen(reminders: reminders)),
                 );
                 if (result != null && result is Map<String, dynamic>) {
-                  final int reminderId =
-                      DateTime.now().millisecondsSinceEpoch % 1000000;
-                  result['confirmed'] = false;
-                  result['id'] = reminderId;
-                  setState(() {
-                    reminders.add(result);
-                  });
-                  await NotificationService.scheduleReminder(
-                    reminderId: reminderId,
-                    name: result['name'],
-                    time: result['time'],
-                    days: List<bool>.from(result['days']),
-                  );
+                  await AlarmStorage.addAlarm(reminders, result);
+                  setState(() {});
                 }
               },
               child: Column(
@@ -289,7 +278,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
               style: const TextStyle(
                   fontSize: 18, fontWeight: FontWeight.bold)),
           IconButton(
-              icon: const Icon(Icons.chevron_right), onPressed: _nextMonth),
+              icon: const Icon(Icons.chevron_right),
+              onPressed: _nextMonth),
         ],
       ),
     );
@@ -427,9 +417,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: isActive
-                                  ? Colors.white
-                                  : Colors.black54)),
+                              color:
+                                  isActive ? Colors.white : Colors.black54)),
                     ),
                   ),
                 );
@@ -450,22 +439,43 @@ class _RemindersScreenState extends State<RemindersScreen> {
                               fontSize: 14)),
                     ],
                   )
-                : SizedBox(
+                : reminder['missed'] == true
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border:
+                              Border.all(color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.cancel_outlined,
+                                color: Colors.red, size: 18),
+                            const SizedBox(width: 6),
+                            Text(_t('missed'),
+                                style: const TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14)),
+                          ],
+                        ),
+                      )
+                    : SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         final now = TimeOfDay.now();
                         final confirmed =
                             '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-                        setState(() {
-                          reminders[index]['confirmed'] = true;
-                          reminders[index]['confirmedTime'] = confirmed;
-                        });
+                        await AlarmStorage.confirmAlarm(
+                            reminders, index, confirmed);
+                        setState(() {});
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4A90E2),
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8)),
                       ),

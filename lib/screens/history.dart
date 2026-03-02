@@ -35,14 +35,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String get _lang => AppLanguageState.currentLanguage;
   String _t(String key) => LanguageManager.getString(key, _lang);
 
- List<Map<String, dynamic>> get todayMedications {
+List<Map<String, dynamic>> get todayMedications {
     return widget.reminders
-        .where((reminder) => reminder['confirmed'] == true)
-        .map((reminder) {
+        .where((r) => r['confirmed'] == true || r['missed'] == true)
+        .map((r) {
       return {
-        'name': reminder['name'],
-        'scheduledTime': reminder['confirmedTime'] ?? reminder['time'],
-        'status': 'Taken',
+        'name': r['name'],
+        'scheduledTime': r['time'],
+        'confirmedTime': r['confirmedTime'],
+        'status': r['confirmed'] == true ? 'Taken' : 'Missed',
       };
     }).toList();
   }
@@ -279,8 +280,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     style: const TextStyle(fontWeight: FontWeight.bold)),
                 Text('${_t('scheduled')} ${med['scheduledTime']}',
                     style: TextStyle(
-                        fontSize: 12, color: Colors.grey[600])),
-              ],
+                        fontSize: 12, color: Colors.grey[600])),                if (taken && med['confirmedTime'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time,
+                            size: 12, color: Color(0xFF4A90E2)),
+                        const SizedBox(width: 4),
+                        Text('${_t('taken_at')} ${med['confirmedTime']}',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF4A90E2))),
+                      ],
+                    ),
+                  ),              ],
             ),
           ),
           Text(taken ? _t('taken') : _t('missed'),

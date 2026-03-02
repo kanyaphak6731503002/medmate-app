@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'reminders.dart';
+import 'alarm_ringing.dart';
+import '../../main.dart' as app_main;
 
 class Welcome extends StatefulWidget {
   const Welcome({super.key});
@@ -26,6 +28,24 @@ class _WelcomeState extends State<Welcome>
 
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
+
+      // If app was launched from an alarm notification, show alarm screen
+      final payload = app_main.pendingAlarmPayload;
+      if (payload != null && payload.isNotEmpty) {
+        app_main.pendingAlarmPayload = null; // consume it
+        final parts = payload.split('|');
+        final name = parts.isNotEmpty ? parts[0] : '';
+        final time = parts.length > 1 ? parts[1] : '';
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) =>
+                AlarmRingingScreen(medicineName: name, alarmTime: time),
+            fullscreenDialog: true,
+          ),
+        );
+        return;
+      }
+
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 500),
@@ -55,8 +75,8 @@ class _WelcomeState extends State<Welcome>
             children: [
               Image.asset(
                 'assets/images/rabbit.png',
-                width: 220,
-                height: 220,
+                width: MediaQuery.of(context).size.width * 0.72,
+                height: MediaQuery.of(context).size.width * 0.72,
                 fit: BoxFit.contain,
               ),
               const SizedBox(height: 24),

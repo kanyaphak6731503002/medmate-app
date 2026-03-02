@@ -7,26 +7,39 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  static const AndroidNotificationDetails _androidDetails =
-      AndroidNotificationDetails(
-    'medmate_channel',
-    'MedMate Reminders',
-    channelDescription: 'Medication reminder notifications',
-    importance: Importance.max,
-    priority: Priority.high,
-    playSound: true,
-  );
+  static const String _channelId = 'medmate_channel';
 
-  static const NotificationDetails _notifDetails = NotificationDetails(
-    android: _androidDetails,
-    iOS: DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    ),
-  );
+  /// Callback invoked when a notification is tapped or fullScreenIntent fires.
+  static void Function(String? payload)? _onTap;
 
-  static Future<void> init() async {
+  static NotificationDetails _buildDetails(String name) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        _channelId,
+        'MedMate Reminders',
+        channelDescription: 'Medication reminder notifications',
+        importance: Importance.max,
+        priority: Priority.max,
+        category: AndroidNotificationCategory.alarm,
+        playSound: true,
+        enableVibration: true,
+        fullScreenIntent: true,
+        ticker: 'MedMate Alarm',
+        styleInformation: BigTextStyleInformation(name),
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+  }
+
+  static Future<void> init(
+      {void Function(String? payload)? onNotificationTap}) async {
+    _onTap = onNotificationTap;
+
     tz_data.initializeTimeZones();
 
     final String timeZoneName = await FlutterTimezone.getLocalTimezone();
@@ -42,17 +55,44 @@ class NotificationService {
     const initSettings =
         InitializationSettings(android: androidSettings, iOS: iosSettings);
 
-    await _plugin.initialize(settings: initSettings);
+    await _plugin.initialize(
+      settings: initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        _onTap?.call(response.payload);
+      },
+      onDidReceiveBackgroundNotificationResponse: _backgroundHandler,
+    );
+
+    // Create channel explicitly (required Android 8+)
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      _channelId,
+      'MedMate Reminders',
+      description: 'Medication reminder notifications',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+    );
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
 
     // Request runtime permission (Android 13+)
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
+
+    // Request exact alarm permission (Android 12+)
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestExactAlarmsPermission();
   }
 
   /// Schedule weekly repeating notifications for each selected day.
-  /// [reminderId] — unique int identifying this reminder (stable across calls).
+  /// [reminderId] — unique int identifying this reminder.
   /// [days] — List<bool> length 7: index 0=Mon … 6=Sun.
   static Future<void> scheduleReminder({
     required int reminderId,
@@ -60,14 +100,13 @@ class NotificationService {
     required String time,
     required List<bool> days,
   }) async {
-    // Cancel old notifications for this reminder first
     await cancelReminder(reminderId);
 
     final parts = time.split(':');
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
 
-    // days index → DateTime.weekday (Mon=1 … Sun=7)
+    // days index 0=Mon…6=Sun → DateTime.weekday Mon=1…Sun=7
     const weekdayMap = [1, 2, 3, 4, 5, 6, 7];
 
     for (int i = 0; i < 7; i++) {
@@ -79,11 +118,12 @@ class NotificationService {
 
       await _plugin.zonedSchedule(
         id: notifId,
-        title: 'MedMate — Time to take your medicine',
-        body: name,
+        title: '💊 MedMate',
+        body: 'ถึงเวลาทานยา: $name',
+        payload: '$name|$time',
         scheduledDate: scheduledDate,
-        notificationDetails: _notifDetails,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        notificationDetails: _buildDetails(name),
+        androidScheduleMode: AndroidScheduleMode.alarmClock,
         matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
       );
     }
@@ -96,23 +136,33 @@ class NotificationService {
     }
   }
 
-  /// Returns the next TZDateTime for [weekday] at [hour]:[minute].
+  /// Returns details about the notification that launched the app, if any.
+  static Future<NotificationAppLaunchDetails?> getLaunchDetails() async {
+    return await _plugin.getNotificationAppLaunchDetails();
+  }
+
+  /// Returns the next TZDateTime on the given [weekday] at [hour]:[minute].
   static tz.TZDateTime _nextInstanceOfWeekdayTime(
       int weekday, int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
     var candidate =
         tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
 
-    // Advance day-by-day until we land on the right weekday
-    while (candidate.weekday != weekday) {
+    // Advance until we reach the target weekday
+    for (int attempt = 0; attempt < 8; attempt++) {
+      if (candidate.weekday == weekday && candidate.isAfter(now)) {
+        return candidate;
+      }
       candidate = candidate.add(const Duration(days: 1));
-    }
-
-    // If that time has already passed today/this week, push one week ahead
-    if (candidate.isBefore(now)) {
-      candidate = candidate.add(const Duration(days: 7));
     }
 
     return candidate;
   }
+}
+
+/// Top-level handler required for background notification responses.
+/// Must be a top-level function annotated with @pragma('vm:entry-point').
+@pragma('vm:entry-point')
+void _backgroundHandler(NotificationResponse response) {
+  // Navigation is handled when the app comes to foreground via _onTap.
 }
