@@ -65,39 +65,45 @@ class _WelcomeState extends State<Welcome>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final imageSize = screenWidth < 520 ? screenWidth * 0.72 : 320.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: FadeTransition(
         opacity: _fadeAnim,
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/rabbit.png',
-                width: MediaQuery.of(context).size.width * 0.72,
-                height: MediaQuery.of(context).size.width * 0.72,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'MedMate',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF4A90E2),
-                  letterSpacing: 1.5,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/images/rabbit.png',
+                  width: imageSize,
+                  height: imageSize,
+                  fit: BoxFit.contain,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your medication reminder',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[500],
+                const SizedBox(height: 24),
+                const Text(
+                  'MedMate',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF4A90E2),
+                    letterSpacing: 1.5,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'Your medication reminder',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

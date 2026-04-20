@@ -4,6 +4,104 @@ import 'history.dart';
 import '../services/language_manager.dart';
 import '../services/app_language_state.dart';
 import '../services/alarm_storage.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'dart:async';
+
+final FlutterLocalNotificationsPlugin notifications =
+    FlutterLocalNotificationsPlugin();
+
+String dayKey(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
+bool _isToday(String? day) => day == dayKey(DateTime.now());
+
+tz.TZDateTime _nextInstanceOfWeekdayTime(int weekday, int hour, int minute) {
+  final now = tz.TZDateTime.now(tz.local);
+  var scheduled = tz.TZDateTime(
+    tz.local,
+    now.year,
+    now.month,
+    now.day,
+    hour,
+    minute,
+  );
+
+  while (scheduled.weekday != weekday || scheduled.isBefore(now)) {
+    scheduled = scheduled.add(const Duration(days: 1));
+  }
+  return scheduled;
+}
+
+Future<void> scheduleWeeklyReminder({
+  required int baseId,
+  required String title,
+  required String body,
+  required List<int> weekdays, // DateTime.monday..sunday
+  required int hour,
+  required int minute,
+}) async {
+  const details = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'medmate_reminder',
+      'Medication Reminder',
+      channelDescription: 'Weekly medicine reminders',
+      importance: Importance.max,
+      priority: Priority.high,
+    ),
+  );
+
+  for (final w in weekdays) {
+    final id = baseId * 10 + w; // unique per weekday
+    await notifications.zonedSchedule(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: _nextInstanceOfWeekdayTime(w, hour, minute),
+      notificationDetails: details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
+  }
+}
+
+class Reminder {
+  final String id;
+  final List<int> weekdays; // DateTime.monday ... DateTime.sunday
+  final int hour;
+  final int minute;
+
+  Map<String, bool> takenByDate; // <-- ใหม่
+
+  Reminder({
+    required this.id,
+    required this.weekdays,
+    required this.hour,
+    required this.minute,
+    Map<String, bool>? takenByDate,
+  }) : takenByDate = takenByDate ?? {};
+
+  bool isTakenToday() => takenByDate[dayKey(DateTime.now())] ?? false;
+
+  void markTakenToday() {
+    takenByDate[dayKey(DateTime.now())] = true;
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'weekdays': weekdays,
+        'hour': hour,
+        'minute': minute,
+        'takenByDate': takenByDate,
+      };
+
+  factory Reminder.fromJson(Map<String, dynamic> json) => Reminder(
+        id: json['id'],
+        weekdays: List<int>.from(json['weekdays'] ?? []),
+        hour: json['hour'],
+        minute: json['minute'],
+        takenByDate: Map<String, bool>.from(json['takenByDate'] ?? {}),
+      );
+}
 
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({Key? key}) : super(key: key);
@@ -13,6 +111,14 @@ class RemindersScreen extends StatefulWidget {
 }
 
 class _RemindersScreenState extends State<RemindersScreen> {
+  Timer? _midnightTimer;
+
+  void _scheduleMidnightRefresh(VoidCallback refresh) {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    _midnightTimer = Timer(nextMidnight.difference(now), refresh);
+  }
   List<Map<String, dynamic>> reminders = [];
   late DateTime selectedDate;
   late DateTime today;
@@ -26,10 +132,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
     AppLanguageState.addListener(_onLanguageChange);
     AlarmStorage.addListener(_onAlarmStorageChange);
     _loadAlarms();
+    _scheduleMidnightRefresh(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _midnightTimer?.cancel();
     AppLanguageState.removeListener(_onLanguageChange);
     AlarmStorage.removeListener(_onAlarmStorageChange);
     super.dispose();
@@ -345,6 +455,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   Widget _buildReminderCard(Map<String, dynamic> reminder, int index) {
+    final isTakenToday = reminder['confirmed'] == true &&
+      _isToday(reminder['confirmedDate']?.toString());
+    final isMissedToday = reminder['missed'] == true &&
+      _isToday(reminder['missedDate']?.toString());
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
@@ -425,7 +539,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
               }),
             ),
             const SizedBox(height: 12),
-            reminder['confirmed'] == true
+            isTakenToday
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -439,7 +553,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                               fontSize: 14)),
                     ],
                   )
-                : reminder['missed'] == true
+                : isMissedToday
                     ? Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
@@ -463,29 +577,29 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         ),
                       )
                     : SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final now = TimeOfDay.now();
-                        final confirmed =
-                            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-                        await AlarmStorage.confirmAlarm(
-                            reminders, index, confirmed);
-                        setState(() {});
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4A90E2),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final now = TimeOfDay.now();
+                            final confirmed =
+                                '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+                            await AlarmStorage.confirmAlarm(
+                                reminders, index, confirmed);
+                            setState(() {});
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4A90E2),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text(_t('confirm'),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14)),
+                        ),
                       ),
-                      child: Text(_t('confirm'),
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14)),
-                    ),
-                  ),
           ],
         ),
       ),

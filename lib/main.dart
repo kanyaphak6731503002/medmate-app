@@ -1,12 +1,10 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:medmate/screens/welcome.dart';
 import 'package:medmate/screens/alarm_ringing.dart';
 import 'services/notification_service.dart';
 import 'services/alarm_storage.dart';
 import 'services/alarm_checker.dart';
+import 'services/supabase_client_provider.dart';
 
 /// Global navigator key — lets us push routes from anywhere (alarms, notifications).
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -14,9 +12,12 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 /// Payload from a notification that launched the app while it was killed/background.
 String? pendingAlarmPayload;
 
+const String _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const String _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await _initSupabase();
   await NotificationService.init(onNotificationTap: _onNotificationTap);
   await AlarmStorage.rescheduleAll();
 
@@ -29,6 +30,28 @@ void main() async {
   }
 
   runApp(const MyApp());
+}
+
+Future<void> _initSupabase() async {
+  if (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty) {
+    debugPrint(
+      'Supabase is not configured. Use --dart-define=SUPABASE_URL and --dart-define=SUPABASE_ANON_KEY.',
+    );
+    return;
+  }
+
+  // Supabase anon key is a JWT and should contain dots.
+  if (!_supabaseAnonKey.contains('.')) {
+    debugPrint(
+      'Invalid SUPABASE_ANON_KEY format. Use the anon public key from Supabase Settings > API.',
+    );
+    return;
+  }
+
+  SupabaseClientProvider.initialize(
+    url: _supabaseUrl,
+    anonKey: _supabaseAnonKey,
+  );
 }
 
 /// Fired by flutter_local_notifications when app is foreground and notification arrives,

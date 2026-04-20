@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'addmedication.dart';
+import '../services/alarm_storage.dart';
 import '../services/language_manager.dart';
 import '../services/app_language_state.dart';
 
@@ -17,46 +19,89 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   DateTime selectedDate = DateTime.now();
+  Timer? _midnightTimer;
+  List<Map<String, dynamic>> _historyEntries = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
     AppLanguageState.addListener(_onLanguageChange);
+    AlarmStorage.addListener(_loadHistory);
+    _scheduleMidnightRefresh();
+    _loadHistory();
   }
 
   @override
   void dispose() {
+    _midnightTimer?.cancel();
     AppLanguageState.removeListener(_onLanguageChange);
+    AlarmStorage.removeListener(_loadHistory);
     super.dispose();
   }
 
   void _onLanguageChange() => setState(() {});
 
+  Future<void> _loadHistory() async {
+    final loaded = await AlarmStorage.loadHistoryEntries();
+    if (!mounted) return;
+    setState(() {
+      _historyEntries = loaded;
+      _loading = false;
+    });
+  }
+
   String get _lang => AppLanguageState.currentLanguage;
   String _t(String key) => LanguageManager.getString(key, _lang);
 
-List<Map<String, dynamic>> get todayMedications {
-    return widget.reminders
-        .where((r) => r['confirmed'] == true || r['missed'] == true)
-        .map((r) {
-      return {
-        'name': r['name'],
-        'scheduledTime': r['time'],
-        'confirmedTime': r['confirmedTime'],
-        'status': r['confirmed'] == true ? 'Taken' : 'Missed',
-      };
-    }).toList();
+  String _dayKey([DateTime? date]) {
+    final value = date ?? DateTime.now();
+    return '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
   }
 
-  void _previousMonth() => setState(() {
-        selectedDate =
-            DateTime(selectedDate.year, selectedDate.month - 1);
-      });
+  DateTime _parseDay(String value) {
+    return DateTime.parse(value);
+  }
 
-  void _nextMonth() => setState(() {
-        selectedDate =
-            DateTime(selectedDate.year, selectedDate.month + 1);
-      });
+  String _formatLabel(String day) {
+    final current = DateTime.now();
+    final parsed = _parseDay(day);
+    final currentDay = DateTime(current.year, current.month, current.day);
+    final parsedDay = DateTime(parsed.year, parsed.month, parsed.day);
+    final diff = currentDay.difference(parsedDay).inDays;
+    if (diff == 0) return _t('today');
+    if (diff == 1) return _lang == LanguageManager.THAI ? 'เมื่อวาน' : 'Yesterday';
+    final month = LanguageManager.getMonthName(parsedDay.month, _lang);
+    final year = _lang == LanguageManager.THAI ? parsedDay.year + 543 : parsedDay.year;
+    return '${parsedDay.day} $month $year';
+  }
+
+  Map<String, List<Map<String, dynamic>>> get _groupedHistory {
+    final sorted = [..._historyEntries]
+      ..sort((a, b) => b['eventDate'].toString().compareTo(a['eventDate'].toString()));
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final entry in sorted) {
+      final day = entry['eventDate']?.toString() ?? _dayKey();
+      grouped.putIfAbsent(day, () => []).add(entry);
+    }
+    return grouped;
+  }
+
+  void _scheduleMidnightRefresh() {
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    _midnightTimer = Timer(nextMidnight.difference(now), () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleMidnightRefresh();
+    });
+  }
+
+  List<Map<String, dynamic>> get _todayEntries {
+    return _historyEntries
+        .where((entry) => entry['eventDate']?.toString() == _dayKey())
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,24 +127,35 @@ List<Map<String, dynamic>> get todayMedications {
               const SizedBox(height: 24),
               _buildAdherenceCard(),
               const SizedBox(height: 24),
-              _buildMonthNavigation(),
-              const SizedBox(height: 24),
-              Text(
-                    _t('today'),
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey)),
-              const SizedBox(height: 12),
-              if (todayMedications.isEmpty)
+              if (_loading)
+                const Center(child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(),
+                ))
+              else if (_historyEntries.isEmpty)
                 Center(
-                    child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(_t('no_history'))))
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(_t('no_history')),
+                  ),
+                )
               else
-                ...todayMedications
-                    .map((med) => _buildMedicationHistoryCard(med))
-                    .toList(),
+                ..._groupedHistory.entries.expand((group) {
+                  final label = _formatLabel(group.key);
+                  return [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...group.value.map((entry) => _buildMedicationHistoryCard(entry)),
+                    const SizedBox(height: 12),
+                  ];
+                }),
             ],
           ),
         ),
@@ -197,9 +253,8 @@ List<Map<String, dynamic>> get todayMedications {
   }
 
   Widget _buildAdherenceCard() {
-    final total = todayMedications.length;
-    final taken =
-        todayMedications.where((m) => m['status'] == 'Taken').length;
+    final total = _todayEntries.length;
+    final taken = _todayEntries.where((m) => m['status'] == 'taken').length;
     final missed = total - taken;
     final percent =
         total == 0 ? 0 : ((taken / total) * 100).round();
@@ -235,29 +290,8 @@ List<Map<String, dynamic>> get todayMedications {
     );
   }
 
-  Widget _buildMonthNavigation() {
-    final monthName = LanguageManager.getMonthName(selectedDate.month, _lang);
-    final year = _lang == LanguageManager.THAI
-        ? selectedDate.year + 543
-        : selectedDate.year;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: _previousMonth),
-        Text('$monthName $year',
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w600)),
-        IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: _nextMonth),
-      ],
-    );
-  }
-
   Widget _buildMedicationHistoryCard(Map<String, dynamic> med) {
-    final taken = med['status'] == 'Taken';
+    final taken = med['status'] == 'taken';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
