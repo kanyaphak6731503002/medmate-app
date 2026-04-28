@@ -2,11 +2,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <application
-        android:label="medmate"
+        android:label="MedMate"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <receiver
@@ -23,7 +21,7 @@
             android:exported="true"
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
         <activity
-            android:name=".MainActivity"
+            android:name="com.kanyaphak.medmate.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""

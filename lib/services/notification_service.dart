@@ -83,12 +83,6 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
-
-    // Request exact alarm permission (Android 12+)
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestExactAlarmsPermission();
   }
 
   /// Schedule weekly repeating notifications for each selected day.
@@ -123,7 +117,7 @@ class NotificationService {
         payload: '$name|$time',
         scheduledDate: scheduledDate,
         notificationDetails: _buildDetails(name),
-        androidScheduleMode: AndroidScheduleMode.alarmClock,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
       );
     }
@@ -166,3 +160,4 @@ class NotificationService {
 void _backgroundHandler(NotificationResponse response) {
   // Navigation is handled when the app comes to foreground via _onTap.
 }
+

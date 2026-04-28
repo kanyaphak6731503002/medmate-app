@@ -233,6 +233,26 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F8FD),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFD6E6FA)),
+                ),
+                child: Text(
+                  _t('medical_disclaimer'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.3,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 4),
             _buildCalendarHeader(),
             const SizedBox(height: 20),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'reminders.dart';
 import 'alarm_ringing.dart';
+import '../services/language_manager.dart';
+import '../services/app_language_state.dart';
 import '../../main.dart' as app_main;
 
 class Welcome extends StatefulWidget {
@@ -18,6 +20,7 @@ class _WelcomeState extends State<Welcome>
   @override
   void initState() {
     super.initState();
+    AppLanguageState.addListener(_onLanguageChange);
 
     _controller = AnimationController(
       vsync: this,
@@ -59,9 +62,12 @@ class _WelcomeState extends State<Welcome>
 
   @override
   void dispose() {
+    AppLanguageState.removeListener(_onLanguageChange);
     _controller.dispose();
     super.dispose();
   }
+
+  void _onLanguageChange() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -96,10 +102,34 @@ class _WelcomeState extends State<Welcome>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Your medication reminder',
+                  'Medication reminders and tracking',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[500],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F8FD),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFD6E6FA)),
+                  ),
+                  child: Text(
+                    LanguageManager.getString(
+                      'medical_disclaimer',
+                      AppLanguageState.currentLanguage,
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: Colors.grey[700],
+                    ),
                   ),
                 ),
               ],

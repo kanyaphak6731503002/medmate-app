@@ -97,6 +97,42 @@ begin
     set
       name = excluded.name,
       time = excluded.time,
+      20 x 8
+      2 Hidden Terminals
+      รับงานแล้ว ตอนนี้จะทำให้จบแบบใช้งานได้ทันที: ผมจะแก้แอปให้ผ่านด่าน Exact alarm โดยเอา permission ที่ไม่ผ่านนโยบายออก, เพิ่ม versionCode, แล้ว build AAB ใหม่ให้พร้อมอัปโหลดครับ
+      
+      ต่อไปผมจะแก้ 3 จุดรวดเดียว: เอา USE_EXACT_ALARM ออก และขยับเวอร์ชันเป็น build 4 เพื่อให้อัปโหลดทับของเดิมใน Play Console ได้ครับ
+      
+      แก้โค้ดเสร็จแล้วครับ ตอนนี้จะ build AAB ใหม่ให้เลยเพื่อเช็กว่าไฟล์พร้อมอัปโหลดจริง และยืนยันว่า permission ตัวที่ติดนโยบายถูกเอาออกจากแพ็กเกจแล้ว
+      
+      อัปเดตล่าสุด: build ผ่านแล้วเรียบร้อย เหลือเช็กยืนยันอีกขั้นว่า AAB ใหม่นี้เป็น versionCode 4 และไม่มี USE_EXACT_ALARM จริง จากนั้นผมจะสรุปขั้นตอนที่คุณต้องกดใน Play Console แบบสั้นๆ ให้ทำต่อได้ทันทีครับ
+      
+      Set-Location "c:\Users\PC HP\flutter_application_1\medmate"; rg "USE_EXACT_ALARM|versionCode|versionName" build\app\intermediates\packaged_manifests\release\processReleaseManifestForPackage\AndroidManifest.xml
+      ตอนนี้เครื่องไม่มี rg ผมจะใช้คำสั่ง PowerShell แทนเพื่อดึงบรรทัดสำคัญจาก manifest และรายละเอียดไฟล์ AAB ให้ครบก่อนสรุปครับ
+      
+      งานฝั่งโค้ดทำเสร็จครบแล้วและ build ผ่าน ผมกำลังบันทึกโน้ตสั้นๆ ของโปรเจกต์ไว้ใน repo memory เพื่อให้รอบถัดไปแก้/ปล่อยเวอร์ชันได้เร็วขึ้น แล้วจะสรุปขั้นตอนที่คุณต้องกดใน Play Console ทันทีครับ
+      
+      Created memory file medmate_release_flow.md
+      
+      ทำให้พร้อมปล่อยต่อแล้วครับ ตอนนี้คุณไม่ต้องเลือก Alarm clock/Calendar แล้ว เพราะผมแก้แอปให้พ้นเงื่อนไขนั้นเรียบร้อย
+      
+      สิ่งที่ผมทำให้แล้ว
+      
+      เอา permission ที่ติดนโยบายออก: USE_EXACT_ALARM
+      เพิ่มเวอร์ชันใหม่เพื่ออัปโหลดทับได้:
+      versionName = 1.0.3
+      versionCode = 4
+      Build AAB ใหม่สำเร็จแล้ว
+      ตรวจยืนยันจาก manifest ที่ถูกแพ็กแล้ว:
+      มี SCHEDULE_EXACT_ALARM
+      ไม่มี USE_EXACT_ALARM
+      versionCode เป็น 4
+      ไฟล์ AAB ที่ให้อัปโหลด
+      
+      app-release.aab
+      ทำต่อใน Play Console ตอนนี้
+      
+      
       days = excluded.days,
       meal_timing = excluded.meal_timing,
       enabled = excluded.enabled,

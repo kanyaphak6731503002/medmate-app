@@ -46,6 +46,8 @@ class LanguageManager {
       'error_add_time': 'Please add at least one reminder time',
       'error_select_day': 'Please select at least one day',
       'error_select_meal': 'Please select meal timing',
+      'medical_disclaimer':
+          'MedMate is for reminders only and does not provide medical advice, diagnosis, or treatment.',
     },
     THAI: {
       'welcome': 'ยินดีต้อนรับสู่ MedMate!',
@@ -90,6 +92,8 @@ class LanguageManager {
       'error_add_time': 'กรุณาเพิ่มเวลาแจ้งเตือนอย่างน้อย 1 เวลา',
       'error_select_day': 'กรุณาเลือกวันอย่างน้อย 1 วัน',
       'error_select_meal': 'กรุณาเลือกเวลาทานยา',
+      'medical_disclaimer':
+          'MedMate ใช้สำหรับการแจ้งเตือนเท่านั้น และไม่ใช่คำแนะนำ การวินิจฉัย หรือการรักษาทางการแพทย์',
     },
   };
 
